@@ -1,64 +1,71 @@
 <template>
-  <div class="side-menu" :class="{ expanded: isExpanded }">
-    <div class="logo">
-      <img src="@/assets/logo.svg" alt="Logo">
+  <el-menu
+      :collapse="!isExpanded"
+      :collapse-transition="false"
+      class="side-menu"
+      :default-active="activeIndex"
+  >
+    <div class="logo-container">
+      <img :src="logoSrc" alt="Logo" class="logo-img">
       <span v-show="isExpanded" class="logo-text">Search For You</span>
     </div>
-    <nav class="menu-items">
-      <el-tooltip
-          v-for="item in menuItems"
-          :key="item.id"
-          :content="item.title"
-          placement="right"
-          :show-after="100"
-          :disabled="isExpanded"
-          effect="dark"
-      >
-        <div class="menu-item" @click="handleClick(item)">
-          <el-icon>
-            <component :is="item.icon" />
-          </el-icon>
-          <span v-show="isExpanded" class="menu-title">{{ item.title }}</span>
-        </div>
-      </el-tooltip>
-    </nav>
+
+    <!-- 主菜单项 -->
+    <el-menu-item
+        v-for="item in menuItems"
+        :key="item.id"
+        :index="item.route"
+        @click="handleClick(item)"
+    >
+      <el-icon><component :is="item.icon" /></el-icon>
+      <template #title>{{ item.title }}</template>
+    </el-menu-item>
+
+    <!-- 底部菜单项 -->
     <div class="bottom-items">
-      <el-tooltip
+      <el-menu-item
           v-for="item in bottomItems"
           :key="item.id"
-          :content="item.title"
-          placement="right"
-          :show-after="100"
-          :disabled="isExpanded"
-          effect="dark"
+          :index="String(item.id)"
+          @click="handleMenuItemClick(item)"
       >
-        <div class="menu-item" @click="handleMenuItemClick(item)">
-          <el-icon>
-            <component :is="item.id === 4 ? (isExpanded ? ArrowLeft : ArrowRight) : item.icon" />
-          </el-icon>
-          <span v-show="isExpanded" class="menu-title">
-            {{ item.id === 4 ? (isExpanded ? '收起' : '展开') : item.title }}
-          </span>
-        </div>
-      </el-tooltip>
+        <el-icon>
+          <component :is="item.id === 4 ? (isExpanded ? ArrowLeft : ArrowRight) : item.icon" />
+        </el-icon>
+        <template #title>
+          {{ item.id === 4 ? (isExpanded ? '收起' : '展开') : item.title }}
+        </template>
+      </el-menu-item>
     </div>
-  </div>
+  </el-menu>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Search, Menu, ArrowRight, ArrowLeft, InfoFilled } from '@element-plus/icons-vue'
+import {ref, computed} from 'vue'
+import {useDark} from '@vueuse/core'
+import {Search, Menu, ArrowRight, ArrowLeft, InfoFilled,Share} from '@element-plus/icons-vue'
+import {useRouter, useRoute} from 'vue-router'
 
+const isDark = useDark()
 const isExpanded = ref(false)
+const router = useRouter()
+const route = useRoute()
+
+const activeIndex = computed(() => route.path)
+
+import logoLight from '@/assets/logo.svg'
+import logoDark from '@/assets/logo_white.svg'
+
+const logoSrc = computed(() => (isDark.value ? logoDark : logoLight))
 
 const menuItems = [
-  { id: 1, icon: Search, title: '搜索' },
-  { id: 2, icon: Menu, title: '应用' },
+  {id: 1, icon: Search, title: '搜索', route: '/search'},
+  {id: 2, icon: Share, title: '分享', route: '/share'},
 ]
 
 const bottomItems = [
-  { id: 4, icon: ArrowRight, title: '展开' },
-  { id: 6, icon: InfoFilled, title: '关于' },
+  {id: 4, icon: ArrowRight, title: '展开'},
+  {id: 6, icon: InfoFilled, title: '关于'},
 ]
 
 const handleMenuItemClick = (item) => {
@@ -70,7 +77,9 @@ const handleMenuItemClick = (item) => {
 }
 
 const handleClick = (item) => {
-  console.log('clicked:', item.title)
+  if (item.route) {
+    router.push(item.route)
+  }
 }
 </script>
 
@@ -79,80 +88,62 @@ const handleClick = (item) => {
   position: fixed;
   left: 0;
   top: 0;
-  width: 64px;
-  height: 100%;
-  background-color: #fff;
-  border-right: 1px solid #eee;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-sizing: border-box;
-  transition: width 0.3s ease;
+  height: 100vh;
+  border-right: 1px solid var(--el-border-color);
+  transition: width 0.3s;
 }
 
-.side-menu.expanded {
+.side-menu:not(.el-menu--collapse) {
   width: 200px;
-  align-items: flex-start;
 }
 
-.logo {
-  padding: 16px 0;
-  width: 100%;
+.logo-container {
+  height: 60px;
+  padding: 10px;
   display: flex;
+  align-items: center;
   justify-content: center;
+}
+
+.logo-img {
+  width: 32px;
+  height: 32px;
+  filter: var(--el-menu-icon-filter);
 }
 
 .logo-text {
   margin-left: 8px;
   font-size: 14px;
   font-weight: bold;
-}
-
-.logo img {
-  width: 32px;
-  height: 32px;
-}
-
-.menu-items {
-  flex: 1;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px 0;
-}
-
-.menu-item {
-  height: 40px;
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  cursor: pointer;
-  color: #666;
-  width: 100%;
-  box-sizing: border-box;
-  transition: all 0.3s ease;
-}
-
-.menu-item:hover {
-  background-color: #f5f5f5;
-  color: #1890ff;
-}
-
-.menu-title {
-  margin-left: 12px;
-  font-size: 14px;
+  color: var(--el-text-color-primary);
 }
 
 .bottom-items {
+  position: absolute;
+  bottom: 0;
   width: 100%;
-  padding: 16px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  border-top: 1px solid var(--el-border-color);
 }
 
-i {
-  font-size: 18px;
+:deep(.el-menu-item) {
+  display: flex;
+  align-items: center;
+}
+
+/* 深色模式适配 */
+html.dark {
+  --el-menu-icon-filter: invert(1);
+}
+
+:deep(.el-menu) {
+  background-color: var(--el-bg-color-overlay);
+}
+
+:deep(.el-menu-item) {
+  color: var(--el-text-color-primary);
+}
+
+:deep(.el-menu-item.is-active) {
+  background-color: var(--el-color-primary-light-9);
 }
 </style>
