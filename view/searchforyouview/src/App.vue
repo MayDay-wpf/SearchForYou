@@ -11,7 +11,6 @@ import LogoScroll from "@/components/LogoScroll.vue";
     <SideMenu />
     <div class="wrapper">
       <router-view></router-view>
-      <LogoScroll />
     </div>
   </main>
 </template>

@@ -69,9 +69,11 @@
       </div>
     </div>
   </div>
+  <LogoScroll />
 </template>
 
 <script setup>
+import LogoScroll from "@/components/LogoScroll.vue";
 import { ref, computed } from 'vue'
 import { Camera, Delete, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
