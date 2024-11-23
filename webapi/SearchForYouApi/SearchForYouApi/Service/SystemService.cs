@@ -4,6 +4,7 @@ using COSXML.CosException;
 using COSXML.Model.Object;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using OpenAI.ObjectModels.RequestModels;
 using SearchForYouApi.Dtos;
 using SearchForYouApi.Interface;
 
@@ -156,5 +157,71 @@ public class SystemService: ISystemService
 
         //文件不存在就是删除
         return true;
+    }
+
+    public async Task<string> ImgConvertToBase64(string imagePath, bool addHead = false)
+    {
+        byte[] imageBytes;
+        string mimeType;
+
+        if (Uri.IsWellFormedUriString(imagePath, UriKind.Absolute))
+        {
+            // 处理图片链接
+            using (var client = new HttpClient())
+            {
+                var response = await client.GetAsync(imagePath);
+                imageBytes = await response.Content.ReadAsByteArrayAsync();
+                mimeType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+            }
+        }
+        else
+        {
+            // 处理本地文件路径
+            imageBytes = File.ReadAllBytes(imagePath);
+            mimeType = GetMimeTypeFromFilePath(imagePath);
+        }
+
+        var base64String = Convert.ToBase64String(imageBytes);
+
+        if (addHead)
+        {
+            return $"data:{mimeType};base64,{base64String}";
+        }
+        else
+        {
+            return base64String;
+        }
+    }
+    private string GetMimeTypeFromFilePath(string filePath)
+    {
+        string extension = Path.GetExtension(filePath).ToLowerInvariant();
+        switch (extension)
+        {
+            case ".jpg":
+            case ".jpeg":
+                return "image/jpeg";
+            case ".png":
+                return "image/png";
+            case ".gif":
+                return "image/gif";
+            case ".bmp":
+                return "image/bmp";
+            case ".webp":
+                return "image/webp";
+            default:
+                return "application/octet-stream";
+        }
+    }
+    public ChatCompletionCreateRequest CreateChatCompletionRequest(bool stream)
+    {
+        var chatCompletionCreate = new ChatCompletionCreateRequest();
+        chatCompletionCreate.Stream = stream;
+        chatCompletionCreate.Model = _configuration.GetValue<string>("OpenAIAPI:Model");
+        chatCompletionCreate.Temperature=float.Parse(_configuration.GetValue<string>("OpenAIAPI:Temperature"));
+        chatCompletionCreate.MaxTokens = int.Parse(_configuration.GetValue<string>("OpenAIAPI:MaxTokens"));
+        chatCompletionCreate.TopP=float.Parse(_configuration.GetValue<string>("OpenAIAPI:TopP"));
+        chatCompletionCreate.FrequencyPenalty=float.Parse(_configuration.GetValue<string>("OpenAIAPI:FrequencyPenalty"));
+        chatCompletionCreate.PresencePenalty=float.Parse(_configuration.GetValue<string>("OpenAIAPI:PresencePenalty"));
+        return chatCompletionCreate;
     }
 }

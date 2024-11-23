@@ -25,6 +25,8 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         builder.Services.AddScoped<ISystemService, SystemService>();
+        builder.Services.AddScoped<IAIService, AIService>();
+        builder.Services.AddSingleton<ISearchEngineService, SearchEngineService>();
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.

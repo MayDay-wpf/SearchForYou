@@ -80,6 +80,9 @@ const handleClick = (item) => {
   if (item.route) {
     router.push(item.route)
   }
+  if(item.id===6){
+    window.open('https://github.com/MayDay-wpf/SearchForYou')
+  }
 }
 </script>
 

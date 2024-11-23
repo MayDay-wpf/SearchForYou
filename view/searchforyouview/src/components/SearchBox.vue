@@ -5,6 +5,7 @@
       <h1 class="title">Search For You</h1>
     </div>
     <div class="subtitle">🤔想搜点什么？</div>
+    <div class="subtitle">Bing与Google的图片反向搜索效果不理想，推荐Serper🤗</div>
     <div class="search-box">
       <el-input
           v-model="searchText"
@@ -73,6 +74,7 @@
 </template>
 
 <script setup>
+import request from '@/utils/request'
 import LogoScroll from "@/components/LogoScroll.vue";
 import { ref, computed } from 'vue'
 import { Camera, Delete, ArrowDown } from '@element-plus/icons-vue'
@@ -90,18 +92,18 @@ const isDark = useDark()
 const logoSrc = computed(() => (isDark.value ? logoDark : logoLight))
 const searchText = ref('')
 const imageUrl = ref('')
-const searchEngine = ref('google')
+const searchEngine = ref('bing')
 
 const searchEngines = [
-  {
-    label: 'Google',
-    value: 'google',
-    logo: googleLogo
-  },
   {
     label: 'Bing',
     value: 'bing',
     logo: bingLogo
+  },
+  {
+    label: 'Google',
+    value: 'google',
+    logo: googleLogo
   },
   {
     label: 'Serper',
@@ -124,18 +126,39 @@ const handleEngineChange = (command) => {
   searchEngine.value = command
 }
 
-const handleEnter = (e) => {
+const handleEnter = async (e) => {
   if (e.shiftKey) {
     return
   }
   e.preventDefault()
+  if(!searchText.value){
+    ElMessage.warning('请输入搜索内容')
+    return
+  }
+  // 如果有正在上传的图片，等待上传完成
+  if (selectedFile.value) {
+    ElMessage.warning('图片上传中，请稍后')
+    return
+  }
 
-  // 构建搜索参数
-  const searchParams = {
+  const buildSearchQuery = (params) => {
+    const searchParams = new URLSearchParams()
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) {
+        searchParams.append(key, value)
+      }
+    })
+
+    return Object.fromEntries(searchParams)
+  }
+
+// 构建搜索参数
+  const searchParams = buildSearchQuery({
     q: searchText.value,
     engine: searchEngine.value,
     image: imageUrl.value
-  }
+  })
 
   // 跳转到搜索结果页面
   router.push({
@@ -170,27 +193,52 @@ const handleDrop = (e) => {
     }
   }
 }
-
 // 统一处理图片文件
-const handleImageFile = (file) => {
-  if (!file) return
-
-  // 验证文件大小（例如限制为 5MB）
-  const maxSize = 5 * 1024 * 1024 // 5MB
+const handleImageFile = async (file) => {
+  if (!file) return null
+  selectedFile.value=true;
+  const maxSize = 5 * 1024 * 1024
   if (file.size > maxSize) {
     ElMessage.error('图片大小不能超过 5MB')
-    return
+    return null
   }
 
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    imageUrl.value = e.target.result
-  }
-  reader.readAsDataURL(file)
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      imageUrl.value = e.target.result
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await request.post('/api/Home/UploadImage', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+
+        if (response.data) {
+          ElMessage.success('图片上传成功')
+          imageUrl.value = response.data.url
+          selectedFile.value= false
+          resolve(response.data.url)
+        }
+      } catch (error) {
+        console.error('上传失败:', error)
+        ElMessage.error('图片上传失败')
+        resolve(null)
+      }
+    }
+    reader.readAsDataURL(file)
+  })
 }
 
+const selectedFile = ref(false)
 const handleImageChange = (file) => {
-  handleImageFile(file.raw)
+  if (file.raw) {
+    handleImageFile(file.raw)
+  }
 }
 const removeImage = () => {
   imageUrl.value = ''

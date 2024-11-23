@@ -14,7 +14,7 @@ public class IPCheck
     {
         var ip = context.Connection.RemoteIpAddress.ToString();
         var ipList = _configuration.GetSection("WhiteIPList").Get<List<string>>();
-        if (ipList.Contains(ip)||ipList.Contains("*"))
+        if (ipList.Contains(ip) || ipList.Contains("*"))
         {
             await _next(context);
         }

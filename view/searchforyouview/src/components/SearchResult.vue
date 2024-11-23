@@ -9,47 +9,68 @@
     </header>
 
     <!-- 搜索意图分析部分 -->
-    <el-skeleton :loading="loadingIntent" animated>
+    <el-skeleton v-if="loadingIntent && !hasStartedReceiving" animated>
       <template #template>
         <el-skeleton-item variant="h3" style="width: 30%" />
         <el-skeleton-item variant="p" style="width: 100%" />
         <el-skeleton-item variant="p" style="width: 80%" />
       </template>
-      <template #default>
-        <div class="content-card intent-analysis">
-          <h3>搜索意图分析</h3>
-          <p>搜索内容: {{ searchText }}</p>
-          <p>搜索引擎: {{ searchEngine }}</p>
-          <p>意图分析: {{ intentAnalysis }}</p>
-        </div>
-      </template>
     </el-skeleton>
 
+    <div v-show="!loadingIntent || hasStartedReceiving" class="content-card intent-analysis">
+      <h3>搜索意图分析</h3>
+      <p>搜索内容: {{ searchText }}</p>
+      <p>搜索引擎: {{ searchEngine }}</p>
+      <p>用户可能的意图: </p>
+      <div class="markdown-content" v-html="renderedContent"></div>
+    </div>
+
     <!-- AI回答部分 -->
-    <el-skeleton :loading="loadingAiResponse" animated>
+    <el-skeleton v-if="loadingAiResponse && !hasStartedReceivingai" animated>
       <template #template>
         <el-skeleton-item variant="h3" style="width: 20%" />
         <el-skeleton-item variant="p" style="width: 100%" />
         <el-skeleton-item variant="p" style="width: 90%" />
         <el-skeleton-item variant="p" style="width: 80%" />
       </template>
-      <template #default>
-        <div class="content-card ai-answer">
-          <h3>AI回答</h3>
-          <p>{{ aiResponse }}</p>
-        </div>
-      </template>
     </el-skeleton>
+
+    <div v-if="!loadingAiResponse || hasStartedReceivingai" class="content-card ai-answer">
+      <h3>AI回答</h3>
+      <div class="markdown-content" v-html="renderedAiResponse"></div>
+    </div>
 
     <!-- 图片部分 -->
     <el-skeleton v-if="imageUrl" :loading="loadingImage" animated>
       <template #template>
-        <el-skeleton-item variant="image" style="width: 240px; height: 240px" />
+        <div class="image-grid">
+          <el-skeleton-item v-for="(_, index) in references"
+                            :key="index"
+                            variant="image"
+                            style="width: 240px; height: 240px" />
+        </div>
       </template>
       <template #default>
         <div class="content-card image-section">
           <h3>相关图片</h3>
-          <img :src="imageUrl" alt="搜索图片" class="search-image" />
+          <div class="image-grid">
+            <el-image
+                v-for="(item, index) in references"
+                :key="index"
+                :src="item.url"
+                :preview-src-list="references.map(ref => ref.url)"
+                fit="cover"
+                class="search-image"
+                @error="handleImageError"
+            >
+              <template #error>
+                <div class="image-error">
+                  <el-icon><picture-filled /></el-icon>
+                  <span>加载失败</span>
+                </div>
+              </template>
+            </el-image>
+          </div>
         </div>
       </template>
     </el-skeleton>
@@ -81,84 +102,264 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import request from '@/utils/request'
+import { ref, onMounted,computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ElButton,
   ElSkeleton,
   ElSkeletonItem,
   ElIcon,
-  ElLink
+  ElLink,
+  ElMessage,
 } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { useDark } from '@vueuse/core'
-
+import MarkdownIt from 'markdown-it'
+import 'highlight.js/styles/github.css'
+import hljs from 'highlight.js'
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  highlight: function (str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return '<pre class="hljs"><code>' +
+            hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+            '</code></pre>';
+      } catch (__) {}
+    }
+    return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
+  }
+})
 const isDark = useDark()
-const route = useRoute()
 const router = useRouter()
 
 // 分别控制各部分的loading状态
-const loadingIntent = ref(true)
-const loadingAiResponse = ref(true)
-const loadingImage = ref(true)
 const loadingReferences = ref(true)
 
 const searchText = ref('')
 const searchEngine = ref('')
 const imageUrl = ref('')
-const aiResponse = ref('')
-const intentAnalysis = ref('')
 const references = ref([])
-
+const loadingIntent = ref(true)
+const hasStartedReceiving = ref(false)
+const receivedContent = ref('') // 存储完整的 markdown 文本
+const renderedContent = computed(() => {
+  return md.render(receivedContent.value)
+})
 // 返回搜索页面
 const goBack = () => {
   router.push('/search')
 }
+//意图分析
+const getSearchKeywords = async (question, intent) => {
+  try {
+    const response = await request.post('/api/Home/CreateSearchKeywords', {
+      question,
+      intant: intent // 注意这里使用完整的意图字符串
+    });
 
-// 模拟获取不同部分的数据
+    if (response.success) {
+      return response.data; // 返回关键词字符串
+    } else {
+      throw new Error(response.msg || '获取搜索关键词失败');
+    }
+  } catch (error) {
+    console.error('获取搜索关键词出错:', error);
+    return null;
+  }
+}
+
+// 修改意图分析的代码,在分析完成后调用关键词API
 const fetchIntentAnalysis = () => {
-  setTimeout(() => {
-    intentAnalysis.value = '用户想要了解...'
-    loadingIntent.value = false
-  }, 1000)
+  loadingIntent.value = true;
+  hasStartedReceiving.value = false;
+  receivedContent.value = '';
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', request.defaults.baseURL + '/api/Home/GetUserIntent');
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.responseType = 'text';
+
+  xhr.onprogress = (event) => {
+    const newData = xhr.responseText.slice(xhr.seenBytes || 0);
+    xhr.seenBytes = xhr.responseText.length;
+
+    const lines = newData.split('\n');
+    for (const line of lines) {
+      if (line.trim()) {
+        if (line.startsWith('data: ')) {
+          try {
+            const jsonData = JSON.parse(line.slice(6));
+            if (jsonData.choices?.[0]?.delta?.content) {
+              if (!hasStartedReceiving.value) {
+                hasStartedReceiving.value = true;
+              }
+              receivedContent.value += jsonData.choices[0].delta.content;
+            }
+          } catch (e) {}
+        }
+      }
+    }
+  }
+
+  xhr.onload = async () => {
+    loadingIntent.value = false;
+
+    // 意图分析完成后,调用获取搜索关键词API
+    if (receivedContent.value) {
+      const keywords = await getSearchKeywords(searchText.value, receivedContent.value);
+      if (keywords) {
+        await fetchReferences(keywords);
+      }
+    }
+  }
+
+  xhr.send(JSON.stringify({
+    question: searchText.value,
+    imageUrl: imageUrl.value
+  }));
 }
 
+// 响应式变量
+const loadingAiResponse = ref(true)
+const hasStartedReceivingai = ref(false)
+const aiResponse = ref('') // 存储完整的 markdown 文本
+
+const renderedAiResponse = computed(() => {
+  return md.render(aiResponse.value)
+})
 const fetchAiResponse = () => {
-  setTimeout(() => {
-    aiResponse.value = '这是AI的详细回答...'
+  // 重置所有状态
+  loadingAiResponse.value = true
+  hasStartedReceivingai.value = false
+  aiResponse.value = ''
+
+  const xhr = new XMLHttpRequest()
+  xhr.open('POST', request.defaults.baseURL + '/api/Home/GetAIResultByWeb')
+  xhr.setRequestHeader('Content-Type', 'application/json')
+  xhr.responseType = 'text'
+
+  xhr.onprogress = (event) => {
+    const newData = xhr.responseText.slice(xhr.seenBytes || 0)
+    xhr.seenBytes = xhr.responseText.length
+
+    const lines = newData.split('\n')
+    for (const line of lines) {
+      if (line.trim()) {
+        if (line.startsWith('data: ')) {
+          try {
+            const jsonData = JSON.parse(line.slice(6))
+            if (jsonData.choices?.[0]?.delta?.content) {
+              hasStartedReceivingai.value = true // 收到内容就设置为true
+              aiResponse.value += jsonData.choices[0].delta.content
+            }
+          } catch (e) {
+            console.error('Parse error:', e)
+          }
+        }
+      }
+    }
+  }
+
+  xhr.onload = () => {
     loadingAiResponse.value = false
-  }, 2000)
+  }
+
+  xhr.onerror = (error) => {
+    console.error('Request failed:', error)
+    loadingAiResponse.value = false
+  }
+
+  const params = {
+    searchEngineResultList: references.value,
+    question: searchText.value,
+    Intant: receivedContent.value,
+    ImageUrl: imageUrl.value || ''
+  }
+
+  xhr.send(JSON.stringify(params))
 }
 
+const loadingImage = ref(true)
 const fetchImage = () => {
   setTimeout(() => {
     loadingImage.value = false
-  }, 1500)
+  }, 1000)
 }
+const handleImageError = () => {
+  //ElMessage.warning('图片加载失败')
+}
+const fetchReferences = async (keywords) => {
+  try {
+    loadingReferences.value = true;
 
-const fetchReferences = () => {
-  setTimeout(() => {
-    references.value = [
-      { title: '参考来源1 - 详细标题', url: 'https://example1.com' },
-      { title: '参考来源2 - 详细标题', url: 'https://example2.com' },
-      { title: '参考来源3 - 详细标题', url: 'https://example3.com' },
-    ]
-    loadingReferences.value = false
-  }, 2500)
-}
+    const params = {
+      keyword: keywords,
+      imageUrl: imageUrl.value || '',
+      engine: searchEngine.value
+    };
+
+    const response = await request.post('/api/Home/GetSearchEngineResult', params);
+
+    // 检查response.data是否存在
+    if (!response.data) {
+      throw new Error('Response data is undefined');
+    }
+
+    // 验证返回数据格式
+    if (!Array.isArray(response.data)) {
+      ElMessage.error('非数组响应:', response.data);
+      // 如果response.data不是数组,但可能是嵌套在其他字段中
+      const resultsData = response.data.data || response.data.results || response.data;
+
+      if (Array.isArray(resultsData)) {
+        references.value = resultsData.map(item => ({
+          title: item.title || '',
+          url: item.url || '',
+          snippet: item.snippet || ''
+        }));
+        return;
+      }
+      throw new Error('Response data is not in expected format');
+    }
+
+    // 正常数组数据处理
+    references.value = response.data.map(item => ({
+      title: item.title || '',
+      url: item.url || '',
+      snippet: item.snippet || ''
+    }));
+    if (references.value.length > 0) {
+      fetchAiResponse();
+    }
+    if (imageUrl.value) {
+      await fetchImage();
+    }
+  } catch (error) {
+    ElMessage.error('搜索引擎错误:'+error.message);
+
+    references.value = []; // 清空结果
+  } finally {
+    loadingReferences.value = false;
+  }
+};
 
 onMounted(() => {
-  // 从路由参数中获取搜索信息
-  const { query } = route
-  searchText.value = query.q || ''
-  searchEngine.value = query.engine || ''
-  imageUrl.value = query.image || ''
+  const urlParams = new URLSearchParams(window.location.search)
 
-  // 分别加载各部分数据
-  fetchIntentAnalysis()
-  fetchAiResponse()
-  fetchImage()
-  fetchReferences()
+  searchText.value = urlParams.get('q') || ''
+  searchEngine.value = urlParams.get('engine') || ''
+  imageUrl.value = urlParams.get('image') || ''
+
+  if(searchText.value || imageUrl.value) {
+    fetchIntentAnalysis()
+    //fetchAiResponse()
+    //fetchImage()
+    //fetchReferences()
+  }
 })
 </script>
 
@@ -269,5 +470,109 @@ h3 {
 .dark-mode :deep(.el-button:hover) {
   background-color: var(--el-fill-color-darker);
   border-color: var(--el-border-color-darker);
+}
+
+.streaming-content {
+  white-space: pre-wrap;
+  min-height: 100px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 10px;
+  line-height: 1.6;
+}
+
+.char-animation {
+  display: inline-block;
+  animation: fadeIn 0.1s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 处理换行符的显示 */
+.char-animation:has(+ .char-animation[data-char="\n"]),
+.char-animation[data-char="\n"] {
+  display: block;
+}
+.streaming-content {
+  margin-top: 10px;
+}
+
+.char-animation {
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.markdown-content {
+  margin-top: 15px;
+}
+
+.markdown-content :deep(pre) {
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.markdown-content :deep(code) {
+  font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
+  font-size: 85%;
+}
+
+.markdown-content :deep(p) {
+  margin: 10px 0;
+  line-height: 1.6;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  padding-left: 20px;
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  margin: 16px 0 8px;
+}
+.ai-answer {
+  margin: 20px 0;
+}
+.image-section {
+  margin: 20px 0;
+}
+
+.search-image {
+  width: 240px;
+  height: 240px;
+  border-radius: 8px;
+}
+
+.image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #909399;
+  font-size: 14px;
 }
 </style>
