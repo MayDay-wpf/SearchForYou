@@ -24,6 +24,7 @@ import serperLogo from '@/assets/serper.svg'
 import aibotpro from '@/assets/aibotprologo.png'
 import jinaai from '@/assets/jinaai.svg'
 import siliconflow from '@/assets/siliconflow.png'
+import jetBrains from '@/assets/jetbrains.svg'
 import { useDark } from '@vueuse/core'
 const isDark = useDark()
 const thanksList = [
@@ -56,6 +57,11 @@ const thanksList = [
       name: 'SiliconFlow',
       url: siliconflow,
       link: 'https://siliconflow.cn'
+  },
+  {
+    name: 'JetBrains',
+    url: jetBrains,
+    link: 'https://www.jetbrains.com'
   }
 ]
 const handleLogoClick = (logo) => {
