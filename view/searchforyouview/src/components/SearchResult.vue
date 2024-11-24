@@ -118,6 +118,8 @@ import { useDark } from '@vueuse/core'
 import MarkdownIt from 'markdown-it'
 import 'highlight.js/styles/github.css'
 import hljs from 'highlight.js'
+import texmath from 'markdown-it-texmath'
+import katex from 'katex'
 const md = new MarkdownIt({
   html: true,
   linkify: true,
@@ -131,6 +133,119 @@ const md = new MarkdownIt({
       } catch (__) {}
     }
     return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
+  }
+})
+
+md.use(texmath, {
+  engine: katex,
+  delimiters: ['dollars', 'brackets'], // 同时支持 $ 和 [ 作为分隔符
+  katexOptions: {
+    macros: {
+      // 基本运算符
+      '\\defeq': ':=',
+      '\\bm': '\\boldsymbol',
+
+      // 集合论
+      '\\set': '\\left\\{ #1 \\right\\}', // \set{x}
+      '\\N': '\\mathbb{N}',
+      '\\Z': '\\mathbb{Z}',
+      '\\Q': '\\mathbb{Q}',
+      '\\R': '\\mathbb{R}',
+      '\\C': '\\mathbb{C}',
+
+      // 线性代数
+      '\\mat': '\\begin{matrix} #1 \\end{matrix}', // \mat{...}
+      '\\vec': '\\mathbf{#1}', // \vec{v}
+      '\\det': '\\operatorname{det}',
+      '\\tr': '\\operatorname{tr}',
+
+      // 微积分
+      '\\d': '\\mathrm{d}',
+      '\\diff': '\\frac{\\d}{\\d #1}', // \diff{x}
+      '\\pd': '\\frac{\\partial}{\\partial #1}', // \pd{x}
+
+      // 概率论
+      '\\P': '\\operatorname{P}',
+      '\\E': '\\operatorname{E}',
+      '\\Var': '\\operatorname{Var}',
+      '\\Cov': '\\operatorname{Cov}',
+
+      // 函数和极限
+      '\\lim': '\\operatorname{lim}',
+      '\\sup': '\\operatorname{sup}',
+      '\\inf': '\\operatorname{inf}',
+      '\\max': '\\operatorname{max}',
+      '\\min': '\\operatorname{min}',
+
+      // 三角函数
+      '\\sin': '\\operatorname{sin}',
+      '\\cos': '\\operatorname{cos}',
+      '\\tan': '\\operatorname{tan}',
+      '\\csc': '\\operatorname{csc}',
+      '\\sec': '\\operatorname{sec}',
+      '\\cot': '\\operatorname{cot}',
+
+      // 双曲函数
+      '\\sinh': '\\operatorname{sinh}',
+      '\\cosh': '\\operatorname{cosh}',
+      '\\tanh': '\\operatorname{tanh}',
+
+      // 对数函数
+      '\\log': '\\operatorname{log}',
+      '\\ln': '\\operatorname{ln}',
+      '\\lg': '\\operatorname{lg}',
+
+      // 特殊函数
+      '\\exp': '\\operatorname{exp}',
+      '\\sgn': '\\operatorname{sgn}',
+
+      // 复分析
+      '\\Re': '\\operatorname{Re}',
+      '\\Im': '\\operatorname{Im}',
+      '\\arg': '\\operatorname{arg}',
+
+      // 向量分析
+      '\\grad': '\\operatorname{grad}',
+      '\\div': '\\operatorname{div}',
+      '\\rot': '\\operatorname{rot}',
+      '\\curl': '\\operatorname{curl}',
+
+      // 常用箭头
+      '\\ra': '\\rightarrow',
+      '\\Ra': '\\Rightarrow',
+      '\\la': '\\leftarrow',
+      '\\La': '\\Leftarrow',
+      '\\lra': '\\leftrightarrow',
+      '\\Lra': '\\Leftrightarrow',
+
+      // 其他常用符号
+      '\\eps': '\\varepsilon',
+      '\\phi': '\\varphi',
+      '\\ell': '\\ell',
+
+      // 矩阵简写
+      '\\pmatrix': '\\begin{pmatrix} #1 \\end{pmatrix}',
+      '\\bmatrix': '\\begin{bmatrix} #1 \\end{bmatrix}',
+      '\\vmatrix': '\\begin{vmatrix} #1 \\end{vmatrix}',
+
+      // 定界符
+      '\\abs': '\\left|#1\\right|',
+      '\\norm': '\\left\\|#1\\right\\|',
+      '\\ceil': '\\left\\lceil#1\\right\\rceil',
+      '\\floor': '\\left\\lfloor#1\\right\\rfloor',
+
+      // 求和、积分等
+      '\\sum': '\\sum\\limits',
+      '\\prod': '\\prod\\limits',
+      '\\lim': '\\lim\\limits',
+
+      // 自定义环境
+      '\\cases': '\\begin{cases} #1 \\end{cases}',
+      '\\align': '\\begin{align} #1 \\end{align}',
+    },
+    throwOnError: false, // 防止渲染错误导致整个公式失败
+    errorColor: '#cc0000', // 错误时显示红色
+    strict: false // 不要太严格的语法检查
   }
 })
 const isDark = useDark()
