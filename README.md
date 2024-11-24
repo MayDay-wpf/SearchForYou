@@ -3,6 +3,11 @@
 **Search For You** 是一个基于 AI 的智能搜索项目，旨在为用户提供强大的、贴心的搜索体验。项目实现前后端分离，前端使用 Vue 3，后端基于 .NET 6 构建，性能高效，交互友好。
 
 [Live Demo](https://q.embbot.com/)
+
+![image](https://github.com/user-attachments/assets/18acd2c3-5a95-4d13-a637-e5861e773cf3)
+
+![image](https://github.com/user-attachments/assets/6cf9e7e2-c0cf-42d2-9c09-9f2e2c2efe79)
+
 ---
 
 ## ✨ 特性
