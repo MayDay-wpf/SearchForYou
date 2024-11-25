@@ -127,6 +127,9 @@ const handleEngineChange = (command) => {
 }
 
 const handleEnter = async (e) => {
+  if (e.isComposing || e.keyCode === 229) {
+    return
+  }
   if (e.shiftKey) {
     return
   }
