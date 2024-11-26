@@ -9,6 +9,7 @@ using OpenAI.ObjectModels.RequestModels;
 using SearchForYouApi.Dtos;
 using SearchForYouApi.Interface;
 using SearchForYouApi.Models;
+using System.Linq;
 
 namespace SearchForYouApi.Controllers;
 [ApiController]
@@ -174,22 +175,26 @@ public class HomeController : ControllerBase
     public async Task GetAIResultByWeb([FromBody] AIResultByWeb request)
     {
         var searchEngineResultList = request.SearchEngineResultList;
-        var res = new AIResultByWeb
+        var webPageInfo = string.Empty;
+        if (request.Reading == null ? false : request.Reading.Value&&string.IsNullOrEmpty(request.ImageUrl))
         {
-            SearchEngineResultList = searchEngineResultList,
-            ImageUrl = request.ImageUrl,
-            Question = request.Question,
-            Intant = request.Intant
-        };
+            var rerankResponse =
+                await _searchEngineService.RerankWithDuplicates(request.Question, searchEngineResultList);
+            var firstElement = rerankResponse.FirstOrDefault();
+            if (firstElement != null&& !string.IsNullOrEmpty(firstElement.Url))
+            {
+                webPageInfo = await _aiService.JinaUrlRead(firstElement.Url);
+            }
+        }
         string prompt = $@"
                 # Assistant Role and Context
-                - Role: Search Results Based QA Assistant
+                - Role: Search Results Based QA Assistant  
                 - Context: web_search_based_qa
 
                 # Primary Task
                 - Goal: Answer user question based on search results
                 - Key Requirements:
-                  * Analyze search results comprehensively
+                  * Analyze search results comprehensively 
                   * Provide accurate and relevant answers
                   * Cite sources when appropriate
 
@@ -198,15 +203,16 @@ public class HomeController : ControllerBase
                 - Search Intent: {request.Intant}
                 - Search Results: {JsonConvert.SerializeObject(searchEngineResultList)}
                 {(!string.IsNullOrEmpty(request.ImageUrl) ? $"- Image URL: {request.ImageUrl}" : "")}
+                {(!string.IsNullOrEmpty(webPageInfo) ? $"- Web Page Content: {webPageInfo}" : "")}
 
                 # Output Requirements
                 ## Answer Structure
                 1. Direct answer to the question
-                2. Supporting evidence from search results
+                2. Supporting evidence from search results 
                 3. Additional relevant context
 
                 ## Format Guidelines
-                - Citations: Required
+                - Citations: Required 
                 - Language Style: Clear and professional
                 - **Response Language: Must match the language of user's question**
                 ";

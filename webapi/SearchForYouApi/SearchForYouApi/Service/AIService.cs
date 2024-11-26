@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Net.Http.Headers;
+using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using OpenAI.Managers;
@@ -11,6 +12,11 @@ namespace SearchForYouApi.Service;
 
 public class AIService: IAIService
 {
+    private readonly IConfiguration _configuration;
+    public AIService(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
     public async Task<string> GetAIResult(HttpResponse response,
         ChatCompletionCreateRequest chatCompletionCreate, OpenAIService openAiService)
     {
@@ -39,7 +45,6 @@ public class AIService: IAIService
             }
             return intent;
     }
-    
     public async Task<ChatCompletionResponseUnStream> GetAIResultUnStream(ChatCompletionCreateRequest chatCompletionCreate, OpenAIService openAiService)
     {
         var chatCompletionResponse = new ChatCompletionResponseUnStream();
@@ -85,7 +90,6 @@ public class AIService: IAIService
         };
         return chatCompletionResponse;
     }
-
     private ChatCompletionResponse CreateOpenAIStreamResult(ChatCompletionCreateResponse responseContent)
     {
         var chatCompletionResponse = new ChatCompletionResponse();
@@ -134,6 +138,88 @@ public class AIService: IAIService
             0,
             msgBytes.Length);
         await response.Body.FlushAsync(); // 确保立即发送消息
+    }
+    public async Task<RerankResponse> GetRerankResponse(string query, List<string> doc, int topn = 1)
+    {
+        var rerankResponse = new RerankResponse();
+        var apikey = _configuration.GetValue<string>("Reranker:ApiKey");
+        var baseUrl = _configuration.GetValue<string>("Reranker:BaseUrl");
+        var model= _configuration.GetValue<string>("Reranker:Model");
+        try
+        {
+            // 构建请求体
+            var requestBody = new
+            {
+                model = model,
+                query = query,
+                top_n = topn,
+                documents = doc
+            };
+
+            // 序列化请求体
+            var jsonBody = JsonConvert.SerializeObject(requestBody);
+
+            using (var client = new HttpClient())
+            {
+                // 只添加 Authorization 头
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apikey}");
+    
+                // Content-Type 已经在 StringContent 构造函数中设置
+                var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+    
+                var response = await client.PostAsync(baseUrl, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+    
+                if (response.IsSuccessStatusCode)
+                {
+                    rerankResponse = JsonConvert.DeserializeObject<RerankResponse>(responseContent);
+                }
+                else
+                {
+                    throw new Exception($"Rerank API request failed with status code: {response.StatusCode}, Message: {responseContent}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error in GetRerankResponse: {ex.Message}", ex);
+        }
+
+        return rerankResponse;
+    }
+    public async Task<string> JinaUrlRead(string url)
+    {
+        var apikey = _configuration.GetValue<string>("JinaUrlRead:ApiKey");
+        var baseUrl = _configuration.GetValue<string>("JinaUrlRead:BaseUrl");
+
+        // 构造完整的请求URL
+        string fullUrl = $"{baseUrl}/{url}";
+
+        try
+        {
+            using (var client = new HttpClient())
+            {
+                // 正确设置 Bearer token 认证头
+                client.DefaultRequestHeaders.Authorization = 
+                    new AuthenticationHeaderValue("Bearer", apikey);
+
+                // 发送GET请求
+                var response = await client.GetAsync(fullUrl);
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadAsStringAsync();
+                }
+                else
+                {
+                    throw new HttpRequestException($"Request failed with status code: {response.StatusCode}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // 处理异常
+            throw new Exception($"Error reading URL: {ex.Message}", ex);
+        }
     }
 
 }

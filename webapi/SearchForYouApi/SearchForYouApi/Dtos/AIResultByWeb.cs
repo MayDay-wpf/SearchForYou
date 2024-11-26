@@ -6,4 +6,6 @@ public class AIResultByWeb
     public string? ImageUrl { get; set; }
     public string? Question { get; set; }
     public string? Intant { get; set; }
+
+    public bool? Reading { get; set; } = false;
 }
