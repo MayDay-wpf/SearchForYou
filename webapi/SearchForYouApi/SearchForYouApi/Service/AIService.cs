@@ -118,7 +118,7 @@ public class AIService: IAIService
         chatCompletionResponse.Choices = chatChoices;
         return chatCompletionResponse;
     }
-    private byte[] CreateStream(ChatCompletionResponse chatCompletionResponse)
+    public byte[] CreateStream(ChatCompletionResponse chatCompletionResponse)
     {
         var settings = new JsonSerializerSettings
         {
@@ -132,7 +132,7 @@ public class AIService: IAIService
         var msgBytes = Encoding.UTF8.GetBytes(msg);
         return msgBytes;
     }
-    private async Task SendStream(HttpResponse response, byte[] msgBytes)
+    public async Task SendStream(HttpResponse response, byte[] msgBytes)
     {
         await response.Body.WriteAsync(msgBytes,
             0,

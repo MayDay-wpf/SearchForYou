@@ -10,6 +10,8 @@ using SearchForYouApi.Dtos;
 using SearchForYouApi.Interface;
 using SearchForYouApi.Models;
 using System.Linq;
+using System.Text;
+using Newtonsoft.Json.Serialization;
 
 namespace SearchForYouApi.Controllers;
 [ApiController]
@@ -176,13 +178,23 @@ public class HomeController : ControllerBase
     {
         var searchEngineResultList = request.SearchEngineResultList;
         var webPageInfo = string.Empty;
-        if (request.Reading == null ? false : request.Reading.Value&&string.IsNullOrEmpty(request.ImageUrl))
+        var response = Response;
+        response.Headers.Add("Content-Type", "text/event-stream;charset=utf-8");
+        response.Headers.Add("Cache-Control", "no-cache");
+        response.Headers.Add("Connection", "keep-alive");
+        if (request.Reading == null ? false : request.Reading.Value && string.IsNullOrEmpty(request.ImageUrl))
         {
-            var rerankResponse =
-                await _searchEngineService.RerankWithDuplicates(request.Question, searchEngineResultList);
+            await _aiService.SendStream(response, _aiService.CreateStream(
+                CreateSystemResponse("**🔍️ 我正在检索最可能的答案...** \n\n")));
+    
+            var rerankResponse = await _searchEngineService.RerankWithDuplicates(request.Question, searchEngineResultList);
             var firstElement = rerankResponse.FirstOrDefault();
-            if (firstElement != null&& !string.IsNullOrEmpty(firstElement.Url))
+    
+            if (firstElement != null && !string.IsNullOrEmpty(firstElement.Url))
             {
+                await _aiService.SendStream(response, _aiService.CreateStream(
+                    CreateSystemResponse($"**📖 查找到最相似的内容“ [{firstElement.Title}]({firstElement.Url}) ”,我正在阅读链接内容...** \n\n")));
+            
                 webPageInfo = await _aiService.JinaUrlRead(firstElement.Url);
             }
         }
@@ -216,10 +228,6 @@ public class HomeController : ControllerBase
                 - Language Style: Clear and professional
                 - **Response Language: Must match the language of user's question**
                 ";
-        var response = Response;
-        response.Headers.Add("Content-Type", "text/event-stream;charset=utf-8");
-        response.Headers.Add("Cache-Control", "no-cache");
-        response.Headers.Add("Connection", "keep-alive");
         var openAiOptions = new OpenAiOptions();
         openAiOptions.ApiKey = _configuration.GetValue<string>("OpenAIAPI:ApiKey");
         openAiOptions.BaseDomain =  _configuration.GetValue<string>("OpenAIAPI:BaseUrl");
@@ -244,5 +252,18 @@ public class HomeController : ControllerBase
         var chatCompletionCreate = _systemService.CreateChatCompletionRequest(true);
         chatCompletionCreate.Messages = chatMessages;
         var aiResult= await _aiService.GetAIResult(response,chatCompletionCreate, new OpenAIService(openAiOptions));
+    }
+    private ChatCompletionResponse CreateSystemResponse(string content)
+    {
+        return new ChatCompletionResponse
+        {
+            Choices = new List<Choices>
+            {
+                new Choices
+                {
+                    delta = new DeltaContent { Content = content }
+                }
+            }
+        };
     }
 }
