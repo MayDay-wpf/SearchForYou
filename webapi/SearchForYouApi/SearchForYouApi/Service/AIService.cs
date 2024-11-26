@@ -153,7 +153,8 @@ public class AIService: IAIService
                 model = model,
                 query = query,
                 top_n = topn,
-                documents = doc
+                documents = doc,
+                return_documents = true
             };
 
             // 序列化请求体
