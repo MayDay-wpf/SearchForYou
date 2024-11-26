@@ -257,6 +257,7 @@ const loadingReferences = ref(true)
 const searchText = ref('')
 const searchEngine = ref('')
 const imageUrl = ref('')
+const reading = ref(false)
 const references = ref([])
 const loadingIntent = ref(true)
 const hasStartedReceiving = ref(false)
@@ -268,7 +269,7 @@ const renderedContent = computed(() => {
 const goBack = () => {
   router.push('/search')
 }
-//意图分析
+//生成搜索关键词
 const getSearchKeywords = async (question, intent) => {
   try {
     const response = await request.post('/api/Home/CreateSearchKeywords', {
@@ -286,8 +287,7 @@ const getSearchKeywords = async (question, intent) => {
     return null;
   }
 }
-
-// 修改意图分析的代码,在分析完成后调用关键词API
+//搜索意图分析
 const fetchIntentAnalysis = () => {
   loadingIntent.value = true;
   hasStartedReceiving.value = false;
@@ -342,10 +342,10 @@ const fetchIntentAnalysis = () => {
 const loadingAiResponse = ref(true)
 const hasStartedReceivingai = ref(false)
 const aiResponse = ref('') // 存储完整的 markdown 文本
-
 const renderedAiResponse = computed(() => {
   return md.render(aiResponse.value)
 })
+// 获取AI回复
 const fetchAiResponse = () => {
   // 重置所有状态
   loadingAiResponse.value = true
@@ -391,13 +391,14 @@ const fetchAiResponse = () => {
   const params = {
     searchEngineResultList: references.value,
     question: searchText.value,
-    Intant: receivedContent.value,
-    ImageUrl: imageUrl.value || ''
+    intant: receivedContent.value,
+    imageUrl: imageUrl.value || '',
+    reading: reading.value|| false
   }
 
   xhr.send(JSON.stringify(params))
 }
-
+// 图片加载
 const loadingImage = ref(true)
 const fetchImage = () => {
   setTimeout(() => {
@@ -407,6 +408,7 @@ const fetchImage = () => {
 const handleImageError = () => {
   //ElMessage.warning('图片加载失败')
 }
+// 搜索结果
 const fetchReferences = async (keywords) => {
   try {
     loadingReferences.value = true;
@@ -461,19 +463,15 @@ const fetchReferences = async (keywords) => {
     loadingReferences.value = false;
   }
 };
-
 onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
 
   searchText.value = urlParams.get('q') || ''
   searchEngine.value = urlParams.get('engine') || ''
   imageUrl.value = urlParams.get('image') || ''
-
+  reading.value = urlParams.get('reading') === 'true'|| false
   if(searchText.value || imageUrl.value) {
     fetchIntentAnalysis()
-    //fetchAiResponse()
-    //fetchImage()
-    //fetchReferences()
   }
 })
 </script>

@@ -6,6 +6,17 @@
     </div>
     <div class="subtitle">🤔想搜点什么？</div>
     <div class="subtitle">Bing与Google的图片反向搜索效果不理想，推荐Serper🤗</div>
+    <div class="mode-switch">
+      <div class="switch-container" @click="toggleReading">
+        <div class="switch-option" :class="{ active: !reading }">
+          ⚡️ 简易
+        </div>
+        <div class="switch-option" :class="{ active: reading }">
+          🐌 深入
+        </div>
+        <div class="switch-background" :class="{ right: reading }"></div>
+      </div>
+    </div>
     <div class="search-box">
       <el-input
           v-model="searchText"
@@ -93,7 +104,11 @@ const logoSrc = computed(() => (isDark.value ? logoDark : logoLight))
 const searchText = ref('')
 const imageUrl = ref('')
 const searchEngine = ref('bing')
+const reading = ref(false)
 
+const toggleReading = () => {
+  reading.value = !reading.value
+}
 const searchEngines = [
   {
     label: 'Bing',
@@ -160,7 +175,8 @@ const handleEnter = async (e) => {
   const searchParams = buildSearchQuery({
     q: searchText.value,
     engine: searchEngine.value,
-    image: imageUrl.value
+    image: imageUrl.value,
+    reading: reading.value
   })
 
   // 跳转到搜索结果页面
@@ -414,4 +430,74 @@ const removeImage = () => {
     align-items: center;
   }
 }
+
+.mode-switch {
+  margin: 20px auto;
+  display: flex;
+  justify-content: center;
+}
+
+.switch-container {
+  background-color: var(--el-fill-color-light);
+  border-radius: 25px;
+  padding: 4px;
+  display: flex;
+  position: relative;
+  cursor: pointer;
+  width: 200px;
+  height: 40px;
+  border: 1px solid var(--el-border-color);
+}
+
+.switch-option {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  color: var(--el-text-color-regular);
+  transition: color 0.3s;
+  user-select: none;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.switch-option.active {
+  color: var(--el-color-white);
+  font-weight: 500;
+}
+
+.switch-background {
+  position: absolute;
+  width: calc(50% - 4px); /* 修改：调整宽度确保不会超出 */
+  height: calc(100% - 8px);
+  background-color: var(--el-color-primary);
+  border-radius: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  left: 4px;
+  top: 4px;
+}
+
+.switch-background.right {
+  transform: translateX(100%); /* 修改：恢复为100% */
+}
+/* 深色模式特定样式 */
+:root.dark .switch-container {
+  background-color: var(--el-fill-color-dark);
+}
+
+:root.dark .switch-option {
+  color: var(--el-text-color-secondary);
+}
+
+:root.dark .switch-option.active {
+  color: var(--el-color-white);
+}
+
+/* hover效果 */
+.switch-container:hover {
+  background-color: var(--el-fill-color);
+}
+
 </style>

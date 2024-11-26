@@ -5,7 +5,7 @@ import {
 } from 'element-plus'
 // 创建 axios 实例
 const request = axios.create({
-    baseURL: 'http://localhost:5011', // 基础URL
+    baseURL: 'http://localhost:2333', // 基础URL
     timeout: 15000 // 请求超时时间
 })
 
